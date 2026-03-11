@@ -1,0 +1,53 @@
+#version 450
+
+// Tiled matrix multiply: C = A @ B
+// A: [M, K]   B: [K, N]   C: [M, N]
+// All stored in row-major order as flat float arrays.
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) buffer BufA { float A[]; };
+layout(set = 0, binding = 1) buffer BufB { float B[]; };
+layout(set = 0, binding = 2) buffer BufC { float C[]; };
+
+layout(push_constant) uniform PushConstants {
+    uint M;
+    uint K;
+    uint N;
+} pc;
+
+const uint TILE = 16;
+shared float tileA[TILE][TILE];
+shared float tileB[TILE][TILE];
+
+void main() {
+    uint row = gl_GlobalInvocationID.y;
+    uint col = gl_GlobalInvocationID.x;
+
+    float acc = 0.0;
+
+    uint numTiles = (pc.K + TILE - 1) / TILE;
+
+    for (uint t = 0; t < numTiles; ++t) {
+        uint aCol = t * TILE + gl_LocalInvocationID.x;
+        uint bRow = t * TILE + gl_LocalInvocationID.y;
+
+        tileA[gl_LocalInvocationID.y][gl_LocalInvocationID.x] =
+            (row < pc.M && aCol < pc.K) ? A[row * pc.K + aCol] : 0.0;
+
+        tileB[gl_LocalInvocationID.y][gl_LocalInvocationID.x] =
+            (bRow < pc.K && col < pc.N) ? B[bRow * pc.N + col] : 0.0;
+
+        barrier();
+
+        for (uint k = 0; k < TILE; ++k) {
+            acc += tileA[gl_LocalInvocationID.y][k] * tileB[k][gl_LocalInvocationID.x];
+        }
+
+        barrier();
+    }
+
+    if (row < pc.M && col < pc.N) {
+        C[row * pc.N + col] = acc;
+    }
+}

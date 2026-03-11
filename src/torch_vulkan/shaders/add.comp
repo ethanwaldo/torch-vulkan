@@ -1,0 +1,20 @@
+#version 450
+
+// Element-wise in-place add: A[i] += alpha * B[i]
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) buffer BufA { float A[]; };
+layout(set = 0, binding = 1) buffer BufB { float B[]; };
+
+layout(push_constant) uniform PushConstants {
+    uint n;
+    float alpha;
+} pc;
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i < pc.n) {
+        A[i] += pc.alpha * B[i];
+    }
+}

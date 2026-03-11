@@ -1,0 +1,26 @@
+[build-system]
+requires = ["scikit-build-core>=0.9", "torch"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "torch-vulkan"
+version = "0.1.0"
+description = "PyTorch PrivateUse1 custom device backend via Vulkan/Kompute"
+requires-python = ">=3.14"
+license = "MIT"
+
+dependencies = [
+    "torch>=2.10.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0",
+]
+
+[tool.scikit-build]
+cmake.build-type = "Release"
+wheel.packages = ["src/torch_vulkan"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
