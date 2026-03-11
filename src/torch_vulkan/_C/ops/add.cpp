@@ -67,18 +67,17 @@ at::Tensor& vulkan_add_(at::Tensor& self, const at::Tensor& other, const at::Sca
         ->record<kp::OpTensorSyncLocal>({kA})   // kA is both input and output
         ->eval();
 
-    // Write result back into self (in its original dtype / device)
-    std::memcpy(
-        self.to(at::kFloat).data_ptr<float>(),
-        kA->data<float>(),
-        n * sizeof(float)
-    );
-    // If self was bfloat16 / half, cast back
-    if (self.dtype() != at::kFloat) {
-        self.copy_(a.to(self.dtype()));
-    } else {
-        std::memcpy(self.data_ptr<float>(), kA->data<float>(), n * sizeof(float));
+    // If self is already float32, `a` shares its data pointer, so writing
+    // to `a.data_ptr<float>()` modifies `self` directly.
+    std::memcpy(a.data_ptr<float>(), kA->data<float>(), n * sizeof(float));
+
+    // If self was a different dtype (e.g., bfloat16, float16), `a` is a 
+    // separate float32 copy. We need to cast back. 
+    // `self.copy_(a)` handles both dtype casting and device transfers if needed.
+    if (!self.is_same(a)) {
+        self.copy_(a);
     }
+    
     return self;
 }
 
